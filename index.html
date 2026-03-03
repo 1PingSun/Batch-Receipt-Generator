@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+    content="connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com https://github.com/l10n-tw/cwtex-q-fonts-TTFs/;" />
+  <meta http-equiv="Content-Security-Policy"
+    content="connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com https://github.com/;" />
+  <title>批次收據生成器</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="logo">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="8" fill="#4F46E5" />
+          <path d="M8 10h16M8 14h10M8 18h12M8 22h8" stroke="white" stroke-width="2" stroke-linecap="round" />
+          <circle cx="24" cy="22" r="5" fill="#10B981" />
+          <path d="M21.5 22l1.5 1.5 3-3" stroke="white" stroke-width="1.5" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+        <span>批次收據生成器</span>
+      </div>
+      <div class="header-badge">純前端 · 隱私安全</div>
+    </div>
+  </header>
+
+  <!-- ===== MAIN ===== -->
+  <main class="container">
+
+    <!-- Font loading status bar -->
+    <div id="font-status" class="status-bar status-loading">
+      <span class="status-icon">⟳</span>
+      <span id="font-status-text">正在載入中文字體，請稍候…</span>
+      <div class="progress-bar-wrap">
+        <div id="font-progress" class="progress-bar-inner"></div>
+      </div>
+    </div>
+
+    <!-- Font fallback panel (hidden by default, shown when all CDN fail) -->
+    <div id="font-fallback-panel" class="font-fallback-panel hidden">
+      <div class="fallback-header">
+        <span class="fallback-icon">🔤</span>
+        <div>
+          <strong>無法自動載入中文字體</strong>
+          <p>請選擇以下其中一種方式繼續：</p>
+        </div>
+      </div>
+      <div class="fallback-options">
+        <label class="fallback-option" id="fallback-upload-label">
+          <input type="file" id="font-file-input" accept=".ttf,.otf" hidden />
+          <div class="fallback-option-content">
+            <span class="fallback-option-icon">📂</span>
+            <div>
+              <strong>上傳本機字體（推薦）</strong>
+              <small>支援 .ttf / .otf。請至 <a href="https://github.com/l10n-tw/cwtex-q-fonts-TTFs/tree/master/ttf"
+                  target="_blank" rel="noopener">cwtex-q-fonts-TTFs</a> 下載
+                cwTeXQKai-Medium.ttf，或使用系統內建的標楷體（kaiu.ttf）。</small>
+            </div>
+          </div>
+        </label>
+        <button id="btn-use-roboto" class="fallback-option fallback-option-btn">
+          <div class="fallback-option-content">
+            <span class="fallback-option-icon">⚠️</span>
+            <div>
+              <strong>略過，使用預設字體</strong>
+              <small>PDF 可生成，但中文字可能顯示為方框（□）。</small>
+            </div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- ===== STEP 1: INPUT ===== -->
+    <section class="card" id="step-input">
+      <div class="card-header">
+        <span class="step-badge">1</span>
+        <h2>匯入 CSV 資料</h2>
+      </div>
+      <div class="card-body">
+
+        <!-- Org name setting -->
+        <div class="org-name-row">
+          <label class="org-name-label" for="org-name-input">機構名稱</label>
+          <input type="text" id="org-name-input" class="org-name-input"
+            placeholder="例：XX 社會福利基金會（套用至所有收據；若 CSV 有 org 欄位則以 CSV 為主）" />
+        </div>
+
+        <!-- Default Date setting -->
+        <div class="org-name-row">
+          <label class="org-name-label" for="receipt-date-input">收據日期</label>
+          <input type="date" id="receipt-date-input" class="org-name-input" />
+        </div>
+
+        <!-- Filename pattern -->
+        <div class="org-name-row filename-pattern-row">
+          <label class="org-name-label" for="filename-pattern-input">檔名格式</label>
+          <div class="filename-pattern-wrap">
+            <input type="text" id="filename-pattern-input" class="org-name-input" value="{name}-{month_zh}"
+              placeholder="例：{name}-{month_zh}" autocomplete="off" spellcheck="false" />
+            <span id="filename-preview" class="filename-preview"></span>
+          </div>
+        </div>
+        <div class="filename-tokens">
+          <span class="token-label">可用變數：</span>
+          <button class="token-chip" data-token="{name}">{name} 姓名</button>
+          <button class="token-chip" data-token="{month_zh}">{month_zh} 中文月份</button>
+          <button class="token-chip" data-token="{month}">{month} 數字月</button>
+          <button class="token-chip" data-token="{year}">{year} 西元年</button>
+          <button class="token-chip" data-token="{roc_year}">{roc_year} 民國年</button>
+          <button class="token-chip" data-token="{item}">{item} 項目</button>
+        </div>
+
+        <!-- Drop zone -->
+        <div id="drop-zone" class="drop-zone">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <path d="M20 8v16M13 15l7-7 7 7" stroke="#6366F1" stroke-width="2.5" stroke-linecap="round"
+              stroke-linejoin="round" />
+            <path d="M8 28c0 2.2 1.8 4 4 4h16c2.2 0 4-1.8 4-4" stroke="#6366F1" stroke-width="2.5"
+              stroke-linecap="round" />
+          </svg>
+          <p>拖曳 <strong>.csv</strong> 檔案至此，或</p>
+          <label class="btn btn-outline" for="file-input">選擇檔案</label>
+          <input type="file" id="file-input" accept=".csv" hidden />
+          <p class="hint">檔案僅在本地端處理，不會上傳至任何伺服器</p>
+        </div>
+
+        <div class="divider"><span>或貼上 CSV 內容</span></div>
+
+        <!-- Textarea paste -->
+        <textarea id="csv-textarea" class="csv-textarea"
+          placeholder="org,customer,id_number,address,phone,item,amount,note&#10;XX 社會福利基金會,王小明,A123456789,台北市中正區重慶南路一段122號,0912345678,車馬費,1000,"
+          spellcheck="false"></textarea>
+
+        <div class="input-actions">
+          <button id="btn-load-sample" class="btn btn-ghost btn-sm">載入範例資料</button>
+          <button id="btn-download-template" class="btn btn-ghost btn-sm">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 2v8M4 7l4 4 4-4" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M2 12h12" stroke-linecap="round" />
+            </svg>
+            下載範本 CSV
+          </button>
+          <button id="btn-clear" class="btn btn-ghost btn-sm">清除</button>
+          <button id="btn-parse" class="btn btn-primary" disabled>解析並預覽 →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== STEP 2: PREVIEW ===== -->
+    <section class="card hidden" id="step-preview">
+      <div class="card-header">
+        <span class="step-badge">2</span>
+        <h2>資料預覽</h2>
+        <span id="preview-count" class="badge-count"></span>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table id="preview-table">
+            <thead id="preview-thead"></thead>
+            <tbody id="preview-tbody"></tbody>
+          </table>
+        </div>
+
+        <div id="validation-errors" class="error-panel hidden"></div>
+
+        <div class="preview-actions">
+          <button id="btn-back" class="btn btn-ghost">← 返回修改</button>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button id="btn-generate-normal" class="btn btn-outline" disabled>
+              普通版收據
+            </button>
+            <button id="btn-generate-beautiful" class="btn btn-success" disabled>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="margin-right: 4px; vertical-align: middle;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              精美版收據
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== STEP 3: GENERATING ===== -->
+    <section class="card hidden" id="step-generating">
+      <div class="card-header">
+        <span class="step-badge">3</span>
+        <h2>正在生成 PDF…</h2>
+      </div>
+      <div class="card-body center-content">
+        <div class="gen-progress-wrap">
+          <div class="gen-progress-outer">
+            <div id="gen-progress-bar" class="gen-progress-inner"></div>
+          </div>
+          <p id="gen-progress-text" class="gen-progress-text">0 / 0</p>
+        </div>
+        <p id="gen-status-text" class="gen-status-text">準備中…</p>
+      </div>
+    </section>
+
+    <!-- ===== CSV FORMAT GUIDE ===== -->
+    <section class="card collapsible" id="format-guide">
+      <div class="card-header collapsible-trigger" id="guide-trigger">
+        <span class="step-badge info">?</span>
+        <h2>CSV 格式說明</h2>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="card-body collapsible-body" id="guide-body">
+        <p class="guide-desc">請確保您的 CSV 檔案包含以下標題欄位（順序不限）：</p>
+        <table class="guide-table">
+          <thead>
+            <tr>
+              <th>欄位名稱</th>
+              <th>說明</th>
+              <th>必填</th>
+              <th>範例</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>customer</code></td>
+              <td>領款人姓名</td>
+              <td>✅</td>
+              <td>王小明</td>
+            </tr>
+            <tr>
+              <td><code>item</code></td>
+              <td>請款項目</td>
+              <td>✅</td>
+              <td>車馬費</td>
+            </tr>
+            <tr>
+              <td><code>amount</code></td>
+              <td>金額（數字，自動轉大寫）</td>
+              <td>✅</td>
+              <td>1000</td>
+            </tr>
+            <tr>
+              <td><code>id_number</code></td>
+              <td>身分證字號</td>
+              <td>❌</td>
+              <td>E126154740</td>
+            </tr>
+            <tr>
+              <td><code>address</code></td>
+              <td>戶籍地址</td>
+              <td>❌</td>
+              <td>高雄市三民區鼎安路9巷22號</td>
+            </tr>
+            <tr>
+              <td><code>phone</code></td>
+              <td>連絡電話</td>
+              <td>❌</td>
+              <td>0955980488</td>
+            </tr>
+            <tr>
+              <td><code>note</code></td>
+              <td>備註</td>
+              <td>❌</td>
+              <td>出差補助</td>
+            </tr>
+            <tr>
+              <td><code>org</code></td>
+              <td>機構名稱（覆蓋上方輸入欄）</td>
+              <td>❌</td>
+              <td>XX 社會福利基金會</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="guide-tip">
+          <strong>💡 提示：</strong> 若使用 Excel 匯出 CSV，請選擇「另存新檔 → CSV UTF-8 (逗號分隔)」，以避免中文亂碼。
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== TOAST ===== -->
+  <div id="toast-container"></div>
+
+  <!-- ===== LIBRARIES (CDN) ===== -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+  <!-- ===== APP SCRIPTS ===== -->
+  <script src="js/font-loader.js"></script>
+  <script src="js/pdf-generator.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+
+</html>
