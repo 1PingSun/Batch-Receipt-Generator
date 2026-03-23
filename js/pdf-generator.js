@@ -159,7 +159,7 @@ const PdfGenerator = (() => {
                 lbl('請款金額'),
                 val(chinesePay),
                 val('NT $', { bold: true }),
-                val(amountFmt, { alignment: 'right' }),
+                val(amountFmt, { alignment: 'center' }),
               ],
 
               /* Row 3：實領金額 */
@@ -167,7 +167,7 @@ const PdfGenerator = (() => {
                 lbl('實領金額', { bold: true }),
                 val(chinesePay),
                 val('NT $', { bold: true }),
-                val(amountFmt, { alignment: 'right' }),
+                val(amountFmt, { alignment: 'center' }),
               ],
 
               /* Row 4：領款人姓名 + 身分證字號 */
