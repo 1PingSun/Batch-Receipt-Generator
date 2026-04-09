@@ -56,6 +56,67 @@
 
 ---
 
+## 整合至其他網站（/generate API）
+
+如果你有其他網站，想讓使用者點擊按鈕後直接跳轉並自動下載收據 ZIP，可以使用 `/generate` 路由。
+
+### 網址格式
+
+```
+https://your-site.pages.dev/generate?org=...&date=...&template=...&csv=...
+```
+
+### 參數說明
+
+| 參數 | 必填 | 說明 | 預設值 |
+|------|------|------|------|
+| `csv` | ✅ | URL-encoded 的 CSV 內容（格式與主介面相同） | — |
+| `org` | ❌ | 機構名稱 | 空 |
+| `date` | ❌ | 收據日期，格式 `YYYY-MM-DD` | 當天日期 |
+| `pattern` | ❌ | 檔名格式，支援 `{name}`、`{month_zh}` 等變數 | `{name}-{month_zh}` |
+| `template` | ❌ | 收據版型：`normal`（普通版）或 `beautiful`（精美版） | `beautiful` |
+
+### 使用範例
+
+在你的網站加入以下程式碼，使用者點擊按鈕後即可自動開啟生成頁面並下載：
+
+```js
+function generateReceipts() {
+  const csvData = [
+    'customer,item,amount,id_number,phone',
+    '王小明,車馬費,1000,A123456789,0912345678',
+    '李小美,誤餐費,800,,',
+  ].join('\n');
+
+  const query = new URLSearchParams({
+    org: 'XX 社會福利基金會',
+    date: '2026-04-01',
+    template: 'beautiful',
+    pattern: '{name}-{month_zh}',
+    csv: csvData,
+  });
+
+  window.open(`https://your-site.pages.dev/generate?${query}`);
+}
+```
+
+```html
+<button onclick="generateReceipts()">下載收據 ZIP</button>
+```
+
+### 生成頁面流程
+
+使用者開啟連結後，頁面會自動執行以下步驟，全程無需任何操作：
+
+1. 載入中文字體（首次約需數秒，之後瀏覽器會快取）
+2. 解析 CSV 資料並逐份生成 PDF
+3. 打包為 ZIP 並自動觸發下載
+4. 顯示完成畫面（提供「重新下載」按鈕）
+
+> **注意**：CSV 資料是透過 URL query string 傳遞，瀏覽器對網址長度有限制（約 8,000 字元）。建議**單次傳入 50 筆以內**的資料；若資料量較大，建議在自己的網站分批呼叫。
+
+---
+
 ## CSV 格式規範
 
 請確保您的 CSV 檔案包含以下標題欄位（順序不限）：

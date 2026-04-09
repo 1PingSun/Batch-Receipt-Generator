@@ -15,7 +15,7 @@ const FontLoader = (() => {
 
   /* ── 本地字體路徑 ───────────────────────────────────────────────── */
   const FONT_URLS = [
-    'src/cwTeXQMing-Medium.ttf',
+    '/src/cwTeXQMing-Medium.ttf',
   ];
 
   const FONT_NAME = 'KaiFont';

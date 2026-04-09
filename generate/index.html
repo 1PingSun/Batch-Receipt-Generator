@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>生成收據中… — 批次收據生成器</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    .generate-page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .generate-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      padding: 48px 40px 36px;
+      max-width: 460px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .state-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 22px;
+      font-size: 26px;
+      font-weight: 700;
+    }
+
+    .state-icon.loading  { background: #EFF6FF; color: var(--info); }
+    .state-icon.success  { background: #ECFDF5; color: var(--success); }
+    .state-icon.error    { background: #FEF2F2; color: var(--danger); }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 4px solid #BFDBFE;
+      border-top-color: var(--info);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto;
+    }
+
+    .generate-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .generate-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      min-height: 20px;
+    }
+
+    .generate-hint {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 10px;
+    }
+
+    .progress-wrap {
+      margin-bottom: 6px;
+    }
+
+    .count-text {
+      text-align: right;
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    .generate-footer {
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .generate-footer a {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color .15s;
+    }
+
+    .generate-footer a:hover { color: var(--primary); }
+
+    /* State visibility */
+    .state-panel { display: none; }
+    .state-panel.active { display: block; }
+
+    @media (max-width: 480px) {
+      .generate-card { padding: 36px 24px 28px; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="generate-page">
+    <div class="generate-card">
+
+      <!-- State: Font Loading -->
+      <div id="state-font" class="state-panel active">
+        <div class="state-icon loading">
+          <div class="spinner"></div>
+        </div>
+        <h1 class="generate-title">準備中</h1>
+        <p id="font-label" class="generate-subtitle">正在載入中文字體…</p>
+        <div class="progress-wrap">
+          <div class="gen-progress-outer">
+            <div id="font-bar" class="gen-progress-inner"></div>
+          </div>
+        </div>
+        <p class="generate-hint">字體約 5 MB，首次使用需下載，之後瀏覽器會快取。</p>
+      </div>
+
+      <!-- State: Generating -->
+      <div id="state-gen" class="state-panel">
+        <div class="state-icon loading">
+          <div class="spinner"></div>
+        </div>
+        <h1 class="generate-title">正在生成收據</h1>
+        <p id="gen-label" class="generate-subtitle">準備中…</p>
+        <div class="progress-wrap">
+          <div class="gen-progress-outer">
+            <div id="gen-bar" class="gen-progress-inner"></div>
+          </div>
+          <p id="gen-count" class="count-text"></p>
+        </div>
+      </div>
+
+      <!-- State: Done -->
+      <div id="state-done" class="state-panel">
+        <div class="state-icon success">✓</div>
+        <h1 class="generate-title">收據生成完成！</h1>
+        <p id="done-label" class="generate-subtitle">ZIP 檔案已開始下載。</p>
+        <button id="btn-redownload" class="btn btn-outline" style="width:100%;">重新下載</button>
+      </div>
+
+      <!-- State: Error -->
+      <div id="state-error" class="state-panel">
+        <div class="state-icon error">✕</div>
+        <h1 class="generate-title">生成失敗</h1>
+        <p id="error-msg" class="generate-subtitle">發生未知錯誤。</p>
+      </div>
+
+      <div class="generate-footer">
+        <a href="/">← 返回批次收據生成器</a>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- CDN Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+  <!-- App Scripts -->
+  <script src="../js/font-loader.js"></script>
+  <script src="../js/pdf-generator.js"></script>
+
+  <script>
+  (function () {
+    /* ── Parse URL params ─────────────────────────────── */
+    const _p = new URLSearchParams(location.search);
+    const PARAMS = {
+      org:      _p.get('org')      || '',
+      date:     _p.get('date')     || new Date().toISOString().slice(0, 10),
+      pattern:  _p.get('pattern')  || '{name}-{month_zh}',
+      template: _p.get('template') === 'normal' ? 'normal' : 'beautiful',
+      csv:      _p.get('csv')      || '',
+    };
+
+    /* ── DOM refs ─────────────────────────────────────── */
+    const EL = {
+      stateFont:  document.getElementById('state-font'),
+      stateGen:   document.getElementById('state-gen'),
+      stateDone:  document.getElementById('state-done'),
+      stateError: document.getElementById('state-error'),
+      fontBar:    document.getElementById('font-bar'),
+      fontLabel:  document.getElementById('font-label'),
+      genBar:     document.getElementById('gen-bar'),
+      genLabel:   document.getElementById('gen-label'),
+      genCount:   document.getElementById('gen-count'),
+      doneLabel:  document.getElementById('done-label'),
+      errorMsg:   document.getElementById('error-msg'),
+      btnRedown:  document.getElementById('btn-redownload'),
+    };
+
+    function showState(name) {
+      ['stateFont', 'stateGen', 'stateDone', 'stateError'].forEach(k => {
+        EL[k].classList.remove('active');
+      });
+      EL['state' + name[0].toUpperCase() + name.slice(1)].classList.add('active');
+    }
+
+    function showError(msg) {
+      EL.errorMsg.textContent = msg;
+      showState('error');
+    }
+
+    /* ── Validate required param ──────────────────────── */
+    if (!PARAMS.csv.trim()) {
+      showError('缺少必要的 csv 參數。請確認呼叫端有正確傳入 CSV 資料。');
+    } else {
+      _loadFontThenGenerate();
+    }
+
+    /* ── Font loading ─────────────────────────────────── */
+    function _loadFontThenGenerate() {
+      let started = false;
+
+      function go(fontName) {
+        if (started) return;
+        started = true;
+        _generate(fontName);
+      }
+
+      FontLoader.load(
+        (pct, label) => {
+          EL.fontBar.style.width = pct + '%';
+          EL.fontLabel.textContent = label;
+        },
+        () => {
+          /* All sources failed → auto-fallback to Roboto, don't block user */
+          FontLoader.skipToFallback();
+          go('Roboto');
+        }
+      ).then(success => {
+        if (success) go(FontLoader.FONT_NAME);
+      }).catch(() => {
+        FontLoader.skipToFallback();
+        go('Roboto');
+      });
+    }
+
+    /* ── Generation ───────────────────────────────────── */
+    let _savedBlob = null;
+    let _savedName = null;
+
+    async function _generate(fontName) {
+      /* Parse CSV */
+      const parsed = Papa.parse(PARAMS.csv.trim(), {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: h => h.trim().toLowerCase(),
+        transform: v => v.trim(),
+      });
+
+      if (parsed.errors.length && !parsed.data.length) {
+        showError('CSV 解析失敗：' + (parsed.errors[0]?.message || '格式錯誤'));
+        return;
+      }
+
+      const rows = parsed.data;
+      if (!rows.length) { showError('CSV 沒有任何資料列。'); return; }
+
+      const headers = Object.keys(rows[0]).map(k => k.toLowerCase());
+      const REQUIRED = ['customer', 'item', 'amount'];
+      const missing = REQUIRED.filter(f => !headers.includes(f));
+      if (missing.length) {
+        showError('CSV 缺少必要欄位：' + missing.join('、'));
+        return;
+      }
+
+      showState('gen');
+      EL.genLabel.textContent = `共 ${rows.length} 份收據，正在生成…`;
+
+      try {
+        /* Generate PDFs */
+        const pdfs = await PdfGenerator.generateAll(
+          rows,
+          fontName,
+          PARAMS.org,
+          PARAMS.date,
+          PARAMS.pattern,
+          PARAMS.template,
+          (cur, total, filename) => {
+            const pct = Math.round((cur / total) * 88);
+            EL.genBar.style.width = pct + '%';
+            EL.genCount.textContent = `${cur} / ${total}`;
+            EL.genLabel.textContent = `生成中：${filename}`;
+          }
+        );
+
+        /* Pack ZIP */
+        EL.genLabel.textContent = '打包壓縮中…';
+        const zip = new JSZip();
+        pdfs.forEach(({ name, blob }) => zip.file(name, blob));
+
+        const zipBlob = await zip.generateAsync(
+          { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+          meta => {
+            const pct = 88 + Math.round(meta.percent * 0.12);
+            EL.genBar.style.width = pct + '%';
+            EL.genLabel.textContent = `壓縮中… ${Math.round(meta.percent)}%`;
+          }
+        );
+
+        /* Download */
+        const ts = new Date().toISOString().slice(0, 10);
+        const zipName = `收據批次_${ts}_${rows.length}份.zip`;
+        _savedBlob = zipBlob;
+        _savedName = zipName;
+        _triggerDownload(zipBlob, zipName);
+
+        EL.genBar.style.width = '100%';
+        EL.doneLabel.textContent = `已成功生成 ${rows.length} 份 PDF 並打包下載。`;
+        showState('done');
+
+      } catch (err) {
+        showError(err.message || '生成時發生未知錯誤，請稍後再試。');
+      }
+    }
+
+    function _triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 15000);
+    }
+
+    EL.btnRedown.addEventListener('click', () => {
+      if (_savedBlob) _triggerDownload(_savedBlob, _savedName);
+    });
+  })();
+  </script>
+</body>
+
+</html>
