@@ -63,8 +63,12 @@
 ### 網址格式
 
 ```
-https://your-site.pages.dev/generate?org=...&date=...&template=...&csv=...
+https://your-site.pages.dev/generate#org=...&date=...&template=...&csv=...
 ```
+
+> **建議用 `#` 而不是 `?` 帶參數**：`#` 後面的內容瀏覽器不會送到任何伺服器（GitHub Pages、CDN、Proxy 的 access log 都看不到），
+> 適合 CSV 裡含身分證字號、電話、地址等個資的情況。頁面讀完參數後會立刻把網址清乾淨，瀏覽器歷史紀錄也不會留下。
+> 舊的 `?` 寫法仍然相容。
 
 ### 參數說明
 
@@ -96,7 +100,7 @@ function generateReceipts() {
     csv: csvData,
   });
 
-  window.open(`https://your-site.pages.dev/generate?${query}`);
+  window.open(`https://your-site.pages.dev/generate#${query}`);
 }
 ```
 
