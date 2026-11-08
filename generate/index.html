@@ -167,10 +167,10 @@
   </main>
 
   <!-- CDN Libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" integrity="sha512-dfX5uYVXzyU8+KHqj8bjo7UkOdg18PaOtpa48djpNbZHwExddghZ+ZmzWT06R5v6NSk3ZUfsH6FNEDepLx9hPQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js" integrity="sha512-a9NgEEK7tsCvABL7KqtUTQjl69z7091EVPpw5KxPlZ93T141ffe1woLtbXTX+r2/8TtTvRX/v4zTL2UlMUPgwg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js" integrity="sha512-pAoMgvsSBQTe8P3og+SAnjILwnti03Kz92V3Mxm0WOtHuA482QeldNM5wEdnKwjOnQ/X11IM6Dn3nbmvOz365g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
   <!-- App Scripts -->
   <script src="../js/font-loader.js"></script>
@@ -179,7 +179,12 @@
   <script>
   (function () {
     /* ── Parse URL params ─────────────────────────────── */
-    const _p = new URLSearchParams(location.search);
+    // 參數優先從 #fragment 讀（不會送到 GitHub Pages / Cloudflare 等任何伺服器，
+    // 適合帶身分證、電話、地址等個資）；仍相容舊的 ?query 寫法。
+    // 讀完立刻從網址列與瀏覽器歷史紀錄中移除，避免個資殘留。
+    const _raw = location.hash.length > 1 ? location.hash.slice(1) : location.search.slice(1);
+    const _p = new URLSearchParams(_raw);
+    if (location.hash || location.search) history.replaceState(null, '', location.pathname);
     const PARAMS = {
       org:      _p.get('org')      || '',
       date:     _p.get('date')     || new Date().toISOString().slice(0, 10),
